@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?> 
+<AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
+  <Type Name="FreeList_Log">
+    <DisplayString> NO[{_No}],POS [{_POS}],ThreadID [{_ThreadID}],_TopPtr[{_TopPtr}],_TempTopPtr[{_TempTopPtr}],_FreeNode[{_FreeNode}],_ReturnNode[{_ReturnNode}]] </DisplayString>
+  </Type>
+
+  <Type Name="MemoryPoolTLS_Log">
+    <DisplayString> NO[{_No}],POS [{_Pos}],ThreadID [{_ThreadID}],_ChunkPtr[{_ChunkPtr}],_AllocIndex[{_AllocIndex}],_FreeCount[{_FreeCount}],_bFree[{_bFree},_Data[{_Data}]] </DisplayString>
+  </Type>
+  
+</AutoVisualizer>
