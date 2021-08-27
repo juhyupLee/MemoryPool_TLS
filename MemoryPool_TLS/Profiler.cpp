@@ -141,88 +141,6 @@ void Profiler::ProfileEnd(const WCHAR* name)
 
 }
 
-//void Profiler::ProfileEnd(const WCHAR* name)
-//{
-//	
-//	bool bRedundant = false;
-//	int redundantIndex = 0;
-//	LARGE_INTEGER endTime;
-//	QueryPerformanceCounter(&endTime);
-//
-//	DWORD threadID = GetCurrentThreadId();
-//
-//	//태그가 이미 존재하는지 먼저 체크 
-//	for (int index = 0; index < INFO_CNT; ++index)
-//	{
-//
-//		if (!wcscmp(m_ProfileInfo[index]._TagName, name))
-//		{
-//			bRedundant = true;
-//			redundantIndex = index;
-//			break;
-//		}
-//	}
-//
-//	if (!bRedundant)
-//	{
-//		return;
-//	}
-//
-//	bool bSearch = false;
-//	int64_t workingTime = 0;
-//
-//	for (int i = 0; i < 100; ++i)
-//	{
-//		if (m_ProfileInfo[redundantIndex]._SampleData[i]._ThreadID == threadID)
-//		{
-//			workingTime = endTime.QuadPart - m_ProfileInfo[redundantIndex]._SampleData[i]._StartTime.QuadPart;
-//			m_ProfileInfo[redundantIndex]._SampleData[i]._TotalTime += workingTime;
-//			m_ProfileInfo[redundantIndex]._SampleData[i]._Call++;
-//
-//			bSearch = true;
-//
-//
-//
-//			// Max 1,2 Setting
-//			if (m_ProfileInfo[redundantIndex]._SampleData[i]._Max[0] < workingTime)
-//			{
-//				m_ProfileInfo[redundantIndex]._SampleData[i]._Max[1] = m_ProfileInfo[redundantIndex]._SampleData[i]._Max[0];
-//				m_ProfileInfo[redundantIndex]._SampleData[i]._Max[0] = workingTime;
-//			}
-//			else
-//			{
-//				if (m_ProfileInfo[redundantIndex]._SampleData[i]._Max[1] < workingTime)
-//				{
-//					m_ProfileInfo[redundantIndex]._SampleData[i]._Max[1] = workingTime;
-//				}
-//			}
-//
-//			// Min 1,2 Setting
-//			if (m_ProfileInfo[redundantIndex]._SampleData[i]._Min[0] > workingTime)
-//			{
-//				m_ProfileInfo[redundantIndex]._SampleData[i]._Min[1] = m_ProfileInfo[redundantIndex]._SampleData[i]._Min[0];
-//				m_ProfileInfo[redundantIndex]._SampleData[i]._Min[0] = workingTime;
-//			}
-//			else
-//			{
-//				if (m_ProfileInfo[redundantIndex]._SampleData[i]._Min[1] > workingTime)
-//				{
-//					m_ProfileInfo[redundantIndex]._SampleData[i]._Min[1] = workingTime;
-//				}
-//			}
-//	
-//			break;
-//		}
-//	}
-//
-//	if (!bSearch)
-//	{
-//		return;
-//	}
-//
-//
-//}
-
 void Profiler::ProfileDataOutText(const WCHAR* fileName)
 {
 	FILE* pFile = nullptr;
@@ -249,14 +167,15 @@ void Profiler::ProfileDataOutText(const WCHAR* fileName)
 						tempInfo->_SampleData._Min[0] +
 						tempInfo->_SampleData._Min[1]);
 
-				double average = ((double)valuableResult / (((double)tempInfo->_SampleData._Call - (double)4))) / CONVERT_US;
+				double average = ((double)valuableResult / (((double)tempInfo->_SampleData._Call - (double)4)))/ CONVERT_US;/// CONVERT_US;
 				double min = tempInfo->_SampleData._Min[0] / CONVERT_US;
 				double max = tempInfo->_SampleData._Max[0] / CONVERT_US;
 
 				fwprintf(pFile, L"%30ld | %30s | %30.4lf[us] | %30.4lf[us] | %30.4lf[us] | %30lld|\n",
+				//fwprintf(pFile, L"%30ld | %30s | %30lld[us] | %30.4lf[us] | %30.4lf[us] | %30lld|\n",
 					tempInfo->_ThreadID,
 					tempInfo->_TagName,
-					average,
+					average,//average,
 					min,
 					max,
 					tempInfo->_SampleData._Call);

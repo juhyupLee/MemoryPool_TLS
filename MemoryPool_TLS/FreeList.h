@@ -2,9 +2,10 @@
 #include <iostream>
 #include <Windows.h>
 #include "MemoryLog.h"
+#include "Global.h"
 
-#define MARK_FRONT 0x12345678
-#define MARK_REAR 0x87654321
+#define MARK_FRONT 0x1234567876543210
+#define MARK_REAR 0x8765432101234567
 
 
 extern MemoryLogging_New<FreeList_Log,10000> g_MemoryLogFreeList;
@@ -34,8 +35,8 @@ public:
 	struct Mark
 	{
 		int64_t _MarkID;
-		int32_t _MarkValue;
-		int32_t _FreeFlag;
+		int64_t _MarkValue;
+		//int32_t _FreeFlag;
 	};
 	struct Node
 	{
@@ -133,48 +134,21 @@ private:
 	T* AllocateNewMemory();
 
 private:
+
 	TopCheck* m_TopCheck;
 
-	char padding[64];
+
 	bool m_bPlacementNew;
-
-	LONG m_UseCount;
-	LONG m_AllocCount;
-	LONG m_PoolCount;
-
 	const int64_t m_MarkValue;
 
+
+	char m_Padding[64];
+	LONG m_PoolCount;
+	LONG m_UseCount;
+	LONG m_AllocCount;
+	
+
 };
-
-
-//
-//template <int size>
-//class Data
-//{
-//public:
-//	Data() { memset(m_Buffer, 7, size); };
-//	~Data() {};
-//private:
-//	char m_Buffer[size];
-//};
-
-
-//class MemoryPool
-//{
-//
-//public:
-//	MemoryPool() {};
-//
-//	Data<16>* Alloc(int size)
-//	{
-//		m_128 = new FreeList<Data<16>>();
-//		
-//		return m_128->Alloc();
-//	}
-//private:
-//	FreeList<Data<16>>* m_128;
-//
-//};
 
 template<typename T>
 inline int32_t FreeList<T>::GetPoolCount()
@@ -197,20 +171,21 @@ inline int32_t FreeList<T>::GetAllocCount()
 template<typename T>
 inline T* FreeList<T>::AllocateNewMemory()
 {
+	//g_Profiler.ProfileBegin(L"FREELIST_ALLOCNewMemory");
 	AllocMemory* allocMemory;
 	//--------------------------------------------------------------------------
 	// 언더플로우 체크용 mark ID  + data(Payload)  + 오버플로우 체크용 mark ID  할당
 	//--------------------------------------------------------------------------
 	//allocMemory = (AllocMemory*)malloc(sizeof( AllocMemory));
-	allocMemory = (AllocMemory*)_aligned_malloc(sizeof(AllocMemory), 64);
+	allocMemory = (AllocMemory*)_aligned_malloc(sizeof(AllocMemory), 16);
 	new(&allocMemory->_Node)T;
-	allocMemory->_FrontMark._FreeFlag = 0;
+	//allocMemory->_FrontMark._FreeFlag = 0;
 	allocMemory->_FrontMark._MarkID = m_MarkValue;
 	allocMemory->_FrontMark._MarkValue = MARK_FRONT;
 	allocMemory->_RearMark._MarkID = m_MarkValue;
 	allocMemory->_RearMark._MarkValue = MARK_REAR;
 
-	Node* tempNode = &allocMemory->_Node;
+	/*Node* tempNode = &allocMemory->_Node;*/
 
 	//FreeList_Log logData;
 	//logData.DataSettiong(InterlockedIncrement64(&g_FreeListMemoryCount), eFreeListPos::ALLOC_MEMORY, GetCurrentThreadId(), (int64_t)m_TopCheck->_TopPtr,  -1,-1, (int64_t)tempNode);
@@ -220,14 +195,17 @@ inline T* FreeList<T>::AllocateNewMemory()
 	InterlockedIncrement(&m_AllocCount);
 	//InterlockedIncrement(&m_UseCount);
 
+	//g_Profiler.ProfileEnd(L"FREELIST_ALLOCNewMemory");
 	return (T*)&allocMemory->_Node;
 }
 
 template<typename T>
 bool FreeList<T>::Free(T* data)
 {
+	//g_Profiler.ProfileBegin(L"FREELIST_FREE");
 	Node* freeNode = (Node*)data;
 	AllocMemory* allocMemory = (AllocMemory*)((char*)data - sizeof(Mark));
+	//char* byteDataPtr = (char*)data;
 	//AllocMemory* allocMemory = (AllocMemory*)(byteDataPtr - sizeof(int64_t) * 2);
 
 	//----------------------------------------------------
@@ -247,11 +225,11 @@ bool FreeList<T>::Free(T* data)
 		return false;
 	}
 
-	if (0 != InterlockedExchange((LONG*)&(allocMemory->_FrontMark._FreeFlag), 1))
-	{
-		throw(FreeListException(L"Free X 2", __LINE__));
-		return false;
-	}
+	//if (0 != InterlockedExchange((LONG*)&(allocMemory->_FrontMark._FreeFlag), 1))
+	//{
+	//	throw(FreeListException(L"Free X 2", __LINE__));
+	//	return false;
+	//}
 
 	if (m_bPlacementNew)
 	{
@@ -278,14 +256,17 @@ bool FreeList<T>::Free(T* data)
 	//logData.DataSettiong(InterlockedIncrement64(&g_FreeListMemoryCount), eFreeListPos::FREE_OKAY, GetCurrentThreadId(), (int64_t)m_TopCheck->_TopPtr, (int64_t)tempTop._TopPtr, (int64_t)freeNode,-1);
 	//g_MemoryLogFreeList.MemoryLogging(logData);
 
+	
+	//g_Profiler.ProfileEnd(L"FREELIST_FREE");
 	return true;
 }
 
 template <typename T>
 T* FreeList<T>::Alloc()
 {
+	//g_Profiler.ProfileBegin(L"FREELIST_ALLOC");
 	TopCheck tempTop;
-	Node* nextNode = nullptr;
+	//Node* nextNode = nullptr;
 
 	tempTop._TopPtr = m_TopCheck->_TopPtr;
 	tempTop._ID = m_TopCheck->_ID;
@@ -297,9 +278,9 @@ T* FreeList<T>::Alloc()
 			return AllocateNewMemory();
 		}
 
-		nextNode = tempTop._TopPtr->_Next;
+		//nextNode = tempTop._TopPtr->_Next;
 
-	} while (!InterlockedCompareExchange128((LONG64*)m_TopCheck, (LONG64)tempTop._ID + 1, (LONG64)nextNode, (LONG64*)&tempTop));
+	} while (!InterlockedCompareExchange128((LONG64*)m_TopCheck, (LONG64)tempTop._ID + 1, (LONG64)tempTop._TopPtr->_Next, (LONG64*)&tempTop));
 
 	//InterlockedIncrement(&m_UseCount);
 	//InterlockedDecrement(&m_PoolCount);
@@ -314,13 +295,15 @@ T* FreeList<T>::Alloc()
 		new(rtnNode) T;
 	}
 
-	char* byteDataPtr = (char*)rtnNode;
-	AllocMemory* allocMemory = (AllocMemory*)(byteDataPtr - sizeof(int64_t) * 2);
-	InterlockedExchange((LONG*)&(allocMemory->_FrontMark._FreeFlag), 0);
+	//char* byteDataPtr = (char*)rtnNode;
+	//AllocMemory* allocMemory = (AllocMemory*)((char*)rtnNode - sizeof(Mark));
+	//InterlockedExchange((LONG*)&(allocMemory->_FrontMark._FreeFlag), 0);
 
 	//FreeList_Log logData;
 	//logData.DataSettiong(InterlockedIncrement64(&g_FreeListMemoryCount), eFreeListPos::ALLOC_OKAY, GetCurrentThreadId(), (int64_t)m_TopCheck->_TopPtr, (int64_t)tempTop._TopPtr, -1, (int64_t)rtnNode);
 	//g_MemoryLogFreeList.MemoryLogging(logData);
 
+
+	//g_Profiler.ProfileEnd(L"FREELIST_ALLOC");
 	return &rtnNode->_Data;
 }

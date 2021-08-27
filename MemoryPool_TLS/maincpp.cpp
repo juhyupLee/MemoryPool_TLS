@@ -2,19 +2,40 @@
 
 #include "MemoryPool_TLS.h"
 #include "MemoryDump.h"
-#include "Profiler.h"
+#include "Global.h"
 
 
 CrashDump g_CrashDump;
-Profiler g_Profiler;
 
 #define INIT_DATA 0x0000000055555555
 #define INIT_COUNT  0
-#define DATA_COUNT 100000
-#define THREAD_NUM 8
+#define DATA_COUNT 1000000
+#define THREAD_NUM 4
 
-#define POOL_MODE 0
+#define POOL_MODE 1
 
+#define CALL_COUNT 100
+struct Player
+{
+	virtual ~Player()
+	{
+	}
+	int mAge;
+	int mLeve;
+};
+
+struct Monster
+{
+	//Player()
+	////{
+	/////*	wprintf(L"hi");*/
+	////	mAge = 10;
+	////	mLeve = 20;
+	////}
+	int64_t mAge;
+	char name[10];
+
+};
 struct TestData
 {
 	TestData()
@@ -22,36 +43,98 @@ struct TestData
 		_Data = INIT_DATA;
 		_RefCount = INIT_COUNT;
 	}
+	//virtual ~TestData()
+	//{
+
+	//}
+	//char buffer[1024];
+	//Player buffer[62];
 	int64_t _Data;
 	LONG _RefCount;
+	//Monster buffer4[100000];
+	//Player buffer2[100000];
+	//Player buffer[270];
+
+	
 };
+
 
 CrashDump memoryDump;
 
 HANDLE g_Thread[THREAD_NUM];
 bool g_Exit = false;
 
-MemoryPool_TLS<TestData> g_MemoryPool(DATA_COUNT);
+MemoryPool_TLS<TestData> g_MemoryPool(10000);
 
 void Crash()
 {
 	int* p = nullptr;
 	*p = 10;
 }
+unsigned int __stdcall TestThread_NewDeleteVSAllocFree (LPVOID param)
+{
+	int count = 0;
+	TestData** dataArray = new TestData * [DATA_COUNT];
+
+	while (count < CALL_COUNT)
+	{
+		//----------------------------------------------------
+		// New Delete
+		//----------------------------------------------------
+		g_Profiler.ProfileBegin(L"New");
+		for (int i = 0; i < DATA_COUNT; ++i)
+		{
+			dataArray[i] = new TestData;
+		}
+		g_Profiler.ProfileEnd(L"New");
+
+		g_Profiler.ProfileBegin(L"Delete");
+		for (int i = 0; i < DATA_COUNT; ++i)
+		{
+			delete dataArray[i];
+		}
+		g_Profiler.ProfileEnd(L"Delete");
+
+		//---------------------------------------------------------------
+		// Alloc Free
+		//---------------------------------------------------------------
+
+		g_Profiler.ProfileBegin(L"Alloc");
+		for (int i = 0; i < DATA_COUNT; ++i)
+		{
+			dataArray[i] = g_MemoryPool.Alloc();
+		
+		}
+		g_Profiler.ProfileEnd(L"Alloc");
 
 
+		g_Profiler.ProfileBegin(L"Free");
+		for (int i = 0; i < DATA_COUNT; ++i)
+		{
+			g_MemoryPool.Free(dataArray[i]);
+		}
+		g_Profiler.ProfileEnd(L"Free");
+	
+		count++;
+	}
+	return 0;
+}
+
+#if POOL_MODE == 0
 unsigned int __stdcall TestThread_NewDelete(LPVOID param)
 {
 	TestData** dataArray = (TestData**)param;
+	int count = 0;
 
-	while (1)
+	
+	while (count < CALL_COUNT)
 	{
 		if (g_Exit)
 		{
 			break;
 		}
 		
-		g_Profiler.ProfileBegin(L"NewDelete");
+		//g_Profiler.ProfileBegin(L"NewDelete");
 		for (int i = 0; i < DATA_COUNT; ++i)
 		{
 			InterlockedIncrement64(&dataArray[i]->_Data);
@@ -94,13 +177,14 @@ unsigned int __stdcall TestThread_NewDelete(LPVOID param)
 		//----------------------------------------------------
 		// Free 内靛
 		//----------------------------------------------------
+		g_Profiler.ProfileBegin(L"Delete");
 		for (int i = 0; i < DATA_COUNT; ++i)
 		{
-			//g_Profiler.ProfileBegin(L"Delete");
+			
 			delete dataArray[i];
-			//g_Profiler.ProfileEnd(L"Delete");
+			
 		}
-
+		g_Profiler.ProfileEnd(L"Delete");
 		//Sleep(0);
 
 
@@ -109,11 +193,12 @@ unsigned int __stdcall TestThread_NewDelete(LPVOID param)
 		//----------------------------------------------------
 		// Alloc 内靛
 		//----------------------------------------------------
+		g_Profiler.ProfileBegin(L"New");
 		for (int i = 0; i < DATA_COUNT; ++i)
 		{
-			//g_Profiler.ProfileBegin(L"New");
+			
 			dataArray[i] = new TestData;
-			//g_Profiler.ProfileEnd(L"New");
+			
 			if (dataArray[i]->_Data != INIT_DATA)
 			{
 				Crash();
@@ -123,7 +208,7 @@ unsigned int __stdcall TestThread_NewDelete(LPVOID param)
 				Crash();
 			}
 		}
-
+		g_Profiler.ProfileEnd(L"New");
 
 		//Sleep(2);
 		for (int i = 0; i < DATA_COUNT; ++i)
@@ -144,23 +229,27 @@ unsigned int __stdcall TestThread_NewDelete(LPVOID param)
 
 		//Sleep(0);
 
-		g_Profiler.ProfileEnd(L"NewDelete");
+		//g_Profiler.ProfileEnd(L"NewDelete");
+
+		count++;
 	}
 	return 0;
 }
+#endif 
 
+#if POOL_MODE == 1
 unsigned int __stdcall TestThread_Pool(LPVOID param)
 {
 	TestData** dataArray = (TestData**)param;
-
-	while (1)
+	int count = 0;
+	while (true)
 	{
 		if (g_Exit)
 		{
 			break;
 		}
 		
-		g_Profiler.ProfileBegin(L"Pool");
+		//g_Profiler.ProfileBegin(L"Pool");
 		for (int i = 0; i < DATA_COUNT; ++i)
 		{
 			InterlockedIncrement64(&dataArray[i]->_Data);
@@ -203,26 +292,27 @@ unsigned int __stdcall TestThread_Pool(LPVOID param)
 		//----------------------------------------------------
 		// Free 内靛
 		//----------------------------------------------------
+		//g_Profiler.ProfileBegin(L"PoolFree");
 		for (int i = 0; i < DATA_COUNT; ++i)
 		{
-			//g_Profiler.ProfileBegin(L"PoolFree");
+			
 			g_MemoryPool.Free(dataArray[i]);
-			//g_Profiler.ProfileEnd(L"PoolFree");
+			
 		}
-
+		//g_Profiler.ProfileEnd(L"PoolFree");
 		//Sleep(0);
 
-
-		//memset(dataArray, 0, sizeof(TestData*) * DATA_COUNT);
 
 		//----------------------------------------------------
 		// Alloc 内靛
 		//----------------------------------------------------
+		//g_Profiler.ProfileBegin(L"PoolAlloc");
 		for (int i = 0; i < DATA_COUNT; ++i)
 		{
-			//g_Profiler.ProfileBegin(L"PoolAlloc");
+			
 			dataArray[i] = g_MemoryPool.Alloc();
-			//g_Profiler.ProfileEnd(L"PoolAlloc");
+			
+
 			if (dataArray[i]->_Data != INIT_DATA)
 			{
 				Crash();
@@ -232,7 +322,7 @@ unsigned int __stdcall TestThread_Pool(LPVOID param)
 				Crash();
 			}
 		}
-
+		//g_Profiler.ProfileEnd(L"PoolAlloc");
 		
 		//Sleep(2);
 		for (int i = 0; i < DATA_COUNT; ++i)
@@ -250,16 +340,24 @@ unsigned int __stdcall TestThread_Pool(LPVOID param)
 				Crash();
 			}
 		}
-		g_Profiler.ProfileEnd(L"Pool");
+		//g_Profiler.ProfileEnd(L"Pool");
 		//Sleep(0)
+		count++;
 	}
 	return 0;
 }
+#endif
 
 int main()
 {
 #if POOL_MODE ==1
-	TestData* dataArray[THREAD_NUM][DATA_COUNT];
+
+	TestData*** dataArray = new TestData ** [THREAD_NUM];
+	for (int i = 0; i < THREAD_NUM; ++i)
+	{
+		dataArray[i] = new TestData*[DATA_COUNT];
+	}
+
 
 	for (int i = 0; i < THREAD_NUM; ++i)
 	{
@@ -289,10 +387,25 @@ int main()
 		g_Thread[i] = (HANDLE)_beginthreadex(NULL, 0, TestThread_Pool, (void*)dataArray[i], 0, NULL);
 	}
 
+
+	while (true)
+	{
+		if (GetAsyncKeyState(VK_F4))
+		{
+			g_Exit = true;
+			break;
+		}
+		wprintf(L"Chunk Count:%d\n", g_MemoryPool.GetChunkCount());
+		Sleep(1000);
+	}
 #endif
 
 #if POOL_MODE ==0
-	TestData* dataArray[THREAD_NUM][DATA_COUNT];
+	TestData*** dataArray = new TestData * *[THREAD_NUM];
+	for (int i = 0; i < THREAD_NUM; ++i)
+	{
+		dataArray[i] = new TestData * [DATA_COUNT];
+	}
 
 	for (int i = 0; i < THREAD_NUM; ++i)
 	{
@@ -322,16 +435,20 @@ int main()
 	}
 #endif
 
-	while (true)
+
+#if POOL_MODE == 3
+
+	int temp = sizeof(TestData);
+	for (int i = 0; i < THREAD_NUM; ++i)
 	{
-		if (GetAsyncKeyState(VK_F4))
-		{
-			g_Exit = true;
-			break;
-		}
-		wprintf(L"Chunk Count:%d\n", g_MemoryPool.GetChunkCount());
-		Sleep(1000);
+		g_Thread[i] = (HANDLE)_beginthreadex(NULL, 0, TestThread_NewDeleteVSAllocFree, NULL, 0, NULL);
 	}
+
+
+
+
+
+#endif
 
 	WaitForMultipleObjects(THREAD_NUM, g_Thread, TRUE, INFINITE);
 

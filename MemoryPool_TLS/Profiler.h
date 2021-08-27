@@ -10,16 +10,16 @@ struct ProfileData
 		:
 		_StartTime{ 0 },
 		_TotalTime(0),
-		_Min{ MAXINT64,MAXINT64 },
-		_Max{ MININT64,MININT64 },
+		_Min{ 0,0 },
+		_Max{ 0,0 },
 		_Call(0)
 	{
 
 	}
 	LARGE_INTEGER _StartTime;
 	int64_t _TotalTime;
-	int64_t _Min[2];
-	int64_t _Max[2];
+	uint64_t _Min[2];
+	uint64_t _Max[2];
 	int64_t _Call;
 };
 struct ProfileInfo

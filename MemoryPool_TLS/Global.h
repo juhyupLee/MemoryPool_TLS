@@ -2,6 +2,9 @@
 #include <iostream>
 #include <Windows.h>
 #include "MemoryLog.h"
+#include "Profiler.h"
+
+extern Profiler g_Profiler;
 extern MemoryLogging_New<IOCP_Log, 5000> g_MemoryLog_IOCP;
 extern MemoryLogging_New<MemoryPoolTLS_Log, 5000> g_MemoryLog_TLSPool;
 
