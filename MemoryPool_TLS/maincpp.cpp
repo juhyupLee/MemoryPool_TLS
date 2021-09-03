@@ -10,9 +10,9 @@ CrashDump g_CrashDump;
 #define INIT_DATA 0x0000000055555555
 #define INIT_COUNT  0
 #define DATA_COUNT 1000000
-#define THREAD_NUM 4
+#define THREAD_NUM 8
 
-#define POOL_MODE 1
+#define POOL_MODE 3
 
 #define CALL_COUNT 100
 struct Player
@@ -47,7 +47,7 @@ struct TestData
 	//{
 
 	//}
-	//char buffer[1024];
+	char buffer[1024];
 	//Player buffer[62];
 	int64_t _Data;
 	LONG _RefCount;
@@ -443,9 +443,6 @@ int main()
 	{
 		g_Thread[i] = (HANDLE)_beginthreadex(NULL, 0, TestThread_NewDeleteVSAllocFree, NULL, 0, NULL);
 	}
-
-
-
 
 
 #endif
